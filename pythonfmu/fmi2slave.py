@@ -169,7 +169,15 @@ class Fmi2Slave(ABC):
                 owner = getattr(owner, s)
         if var.getter is None:
             var.getter = lambda: getattr(owner, var.local_name)
-        if var.setter is None and hasattr(owner, var.local_name) and var.variability != Fmi2Variability.constant:
+        # Check for the common mistake of registering before initializing the attribute
+        if var.setter is None and var.variability != Fmi2Variability.constant:
+            if not hasattr(owner, var.local_name):
+                raise AttributeError(
+                    f"Cannot register variable '{var.name}': attribute '{var.local_name}' "
+                    f"does not exist on {owner.__class__.__name__}. "
+                    f"Make sure to initialize 'self.{var.local_name}' BEFORE calling "
+                    f"register_variable() for non-constant variables that need setters."
+                )
             var.setter = lambda v: setattr(owner, var.local_name, v)
 
     def setup_experiment(self, start_time: float, stop_time: Optional[float], tolerance: Optional[float]):
